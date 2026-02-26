@@ -84,15 +84,6 @@ export class TagSyncSettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
-    containerEl.empty();
-    containerEl.createEl("h2", { text: "TagSync Settings" });
-    containerEl.createEl("h3", { text: "Plugin description" });
-    containerEl.createEl("p", {
-      text: "Syncs tagged Markdown files between vaults through Dropbox.",
-    });
-    containerEl.createEl("p", {
-      text: "Security warning: Dropbox access token is stored unencrypted in this vault.",
-    });
     containerEl.createEl("p", {
       text: "Plugin commands:",
     });
@@ -185,14 +176,14 @@ export class TagSyncSettingTab extends PluginSettingTab {
           }),
       );
 
-    containerEl.createEl("h3", { text: "Experimental features" });
+    new Setting(containerEl).setName("Advanced").setHeading();
     containerEl.createEl("p", {
       text:
         "Remote base path should be the same across all synced vaults. If you change it, previously synced files might stop syncing until you run a full tagged resync.",
     });
 
     new Setting(containerEl)
-      .setName("Remote base path (experimental)")
+      .setName("Remote base path")
       .setDesc("Default is '/'. Use only if you need a dedicated Dropbox subfolder.")
       .addText((text) =>
         text
