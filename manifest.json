@@ -1,0 +1,9 @@
+{
+  "id": "tag-sync",
+  "name": "TagSync",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Sync files of specified tags between vaults using Dropbox.",
+  "author": "Carl J. Kurtz",
+  "authorUrl": "https://github.com/carljkurtz"
+}

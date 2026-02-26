@@ -1,0 +1,20 @@
+{
+  "name": "obsidian-tag-sync",
+  "version": "0.1.0",
+  "description": "Sync files of specified tags between vaults using Dropbox.",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "check": "tsc --noEmit --skipLibCheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.30",
+    "builtin-modules": "^5.0.0",
+    "esbuild": "^0.25.1",
+    "obsidian": "latest",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.2"
+  }
+}

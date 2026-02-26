@@ -1,0 +1,16 @@
+# OS files
+.DS_Store
+.env
+
+# Agents
+agents.md
+tasks/
+project-outline.md
+
+# Node.js
+node_modules
+main.js
+main.js.map
+
+# Build output
+build/
