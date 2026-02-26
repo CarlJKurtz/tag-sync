@@ -37,8 +37,13 @@ jobs:
       - name: Package release files
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p dist/tag-sync
-          cp main.js manifest.json versions.json dist/tag-sync/
+          PLUGIN_DIR="$(find build -type d -path "*/tag-sync" | sort | tail -n 1)"
+          if [ -z "${PLUGIN_DIR}" ]; then
+            echo "No built plugin directory found under build/*/tag-sync"
+            exit 1
+          fi
+          mkdir -p dist
+          cp -R "${PLUGIN_DIR}" dist/tag-sync
           cd dist
           zip -r "tag-sync-${VERSION}.zip" tag-sync
 
