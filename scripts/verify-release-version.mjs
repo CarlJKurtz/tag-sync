@@ -14,10 +14,16 @@ if (!rawTag) {
   fail("Missing tag argument. Usage: node scripts/verify-release-version.mjs <tag>");
 }
 
-const tagVersion = rawTag.startsWith("v") ? rawTag.slice(1) : rawTag;
-if (!tagVersion) {
-  fail(`Invalid tag: "${rawTag}"`);
+if (rawTag.startsWith("v")) {
+  fail(
+    `Invalid tag: "${rawTag}". Use plain semantic version tags in x.y.z format (no 'v' prefix).`,
+  );
 }
+
+if (!/^\d+\.\d+\.\d+$/.test(rawTag)) {
+  fail(`Invalid tag: "${rawTag}". Expected semantic version format x.y.z.`);
+}
+const tagVersion = rawTag;
 
 const manifest = readJson("manifest.json");
 const pkg = readJson("package.json");

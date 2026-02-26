@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
   contents: write
@@ -36,13 +36,24 @@ jobs:
 
       - name: Package release files
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${GITHUB_REF_NAME}"
           PLUGIN_DIR="$(find build -type d -path "*/tag-sync" | sort | tail -n 1)"
           if [ -z "${PLUGIN_DIR}" ]; then
             echo "No built plugin directory found under build/*/tag-sync"
             exit 1
           fi
+          for REQUIRED_FILE in main.js manifest.json; do
+            if [ ! -f "${PLUGIN_DIR}/${REQUIRED_FILE}" ]; then
+              echo "Missing required release file: ${PLUGIN_DIR}/${REQUIRED_FILE}"
+              exit 1
+            fi
+          done
           mkdir -p dist
+          cp "${PLUGIN_DIR}/main.js" dist/main.js
+          cp "${PLUGIN_DIR}/manifest.json" dist/manifest.json
+          if [ -f "${PLUGIN_DIR}/styles.css" ]; then
+            cp "${PLUGIN_DIR}/styles.css" dist/styles.css
+          fi
           cp -R "${PLUGIN_DIR}" dist/tag-sync
           cd dist
           zip -r "tag-sync-${VERSION}.zip" tag-sync
@@ -50,7 +61,12 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
+            dist/main.js
+            dist/manifest.json
+            dist/styles.css
             dist/tag-sync-*.zip
