@@ -454,7 +454,7 @@ export class SyncEngine {
 
     this.markPathIgnored(normalizedPath);
     if (existing) {
-      await this.app.vault.modify(existing, content);
+      await this.app.vault.process(existing, () => content);
       const updated = this.getLocalFile(normalizedPath);
       if (updated) {
         return updated;

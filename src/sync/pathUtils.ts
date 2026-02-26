@@ -1,5 +1,7 @@
+import { normalizePath } from "obsidian";
+
 export function normalizeLocalPath(path: string): string {
-  return path.replace(/\\/g, "/").replace(/^\/+/, "");
+  return normalizePath(path).replace(/^\/+/, "");
 }
 
 export function normalizeRemoteBasePath(path: string): string {
