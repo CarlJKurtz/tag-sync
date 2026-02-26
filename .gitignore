@@ -14,3 +14,4 @@ main.js.map
 
 # Build output
 build/
+dist/
