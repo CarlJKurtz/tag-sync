@@ -35,6 +35,10 @@ interface SyncEngineOptions {
   getSettings: () => TagSyncSettings;
   stateStore: StateStore;
   onStatusChange?: (status: string) => void;
+  onAuthTokensUpdated?: (tokens: {
+    dropboxAccessToken: string;
+    dropboxAccessTokenExpiresAt: string;
+  }) => Promise<void>;
 }
 
 const INTERNAL_IGNORE_GLOBS = [".obsidian/**"];
@@ -45,6 +49,10 @@ export class SyncEngine {
   private readonly stateStore: StateStore;
   private readonly tagIndex: TagIndex;
   private readonly onStatusChange?: (status: string) => void;
+  private readonly onAuthTokensUpdated?: (tokens: {
+    dropboxAccessToken: string;
+    dropboxAccessTokenExpiresAt: string;
+  }) => Promise<void>;
   private isPaused = false;
   private isRunning = false;
   private rerunRequested = false;
@@ -53,6 +61,7 @@ export class SyncEngine {
   private pollTimer: number | null = null;
   private ignoredPaths = new Map<string, number>();
   private forceUploadAllTagged = false;
+  private refreshAccessTokenPromise: Promise<string> | null = null;
 
   constructor(options: SyncEngineOptions) {
     this.app = options.app;
@@ -60,6 +69,7 @@ export class SyncEngine {
     this.stateStore = options.stateStore;
     this.tagIndex = new TagIndex(this.app);
     this.onStatusChange = options.onStatusChange;
+    this.onAuthTokensUpdated = options.onAuthTokensUpdated;
   }
 
   async initialize(): Promise<void> {
@@ -194,6 +204,8 @@ export class SyncEngine {
 
       if (this.isPaused) {
         this.updateStatus("Paused");
+      } else if (!this.isConfigured(this.getSettings())) {
+        this.updateStatus("Setup required");
       } else {
         this.updateStatus("Up to date");
       }
@@ -219,10 +231,16 @@ export class SyncEngine {
 
     const settings = this.getSettings();
     if (!this.isConfigured(settings)) {
+      this.updateStatus("Setup required");
       return;
     }
 
-    const client = new DropboxClient(settings.dropboxAccessToken);
+    const client = new DropboxClient({
+      getAccessToken: async () => this.getValidAccessToken(),
+      refreshAccessToken: this.canRefreshAccessToken(settings)
+        ? async () => this.refreshDropboxAccessToken()
+        : undefined,
+    });
     const shouldForceUpload = this.forceUploadAllTagged || trigger === "resync-all-tagged";
 
     try {
@@ -724,9 +742,80 @@ export class SyncEngine {
   private isConfigured(settings: TagSyncSettings): boolean {
     return Boolean(
       settings.tagsToSync.length > 0 &&
-        settings.dropboxAccessToken.trim() &&
+        this.canRefreshAccessToken(settings) &&
         settings.remoteBasePath.trim(),
     );
+  }
+
+  private canRefreshAccessToken(settings: TagSyncSettings): boolean {
+    return Boolean(settings.dropboxAppKey.trim() && settings.dropboxRefreshToken.trim());
+  }
+
+  private async getValidAccessToken(): Promise<string> {
+    const settings = this.getSettings();
+    if (!this.canRefreshAccessToken(settings)) {
+      throw new Error("Dropbox OAuth setup incomplete.");
+    }
+
+    const accessToken = settings.dropboxAccessToken.trim();
+    if (!accessToken) {
+      return this.refreshDropboxAccessToken();
+    }
+
+    const expiryMs = this.parseIsoTimestamp(settings.dropboxAccessTokenExpiresAt);
+    if (typeof expiryMs === "number" && expiryMs - Date.now() <= 60_000) {
+      return this.refreshDropboxAccessToken();
+    }
+
+    return accessToken;
+  }
+
+  private async refreshDropboxAccessToken(): Promise<string> {
+    if (this.refreshAccessTokenPromise) {
+      return this.refreshAccessTokenPromise;
+    }
+
+    this.refreshAccessTokenPromise = this.refreshDropboxAccessTokenInternal().finally(() => {
+      this.refreshAccessTokenPromise = null;
+    });
+    return this.refreshAccessTokenPromise;
+  }
+
+  private async refreshDropboxAccessTokenInternal(): Promise<string> {
+    const settings = this.getSettings();
+    const appKey = settings.dropboxAppKey.trim();
+    const refreshToken = settings.dropboxRefreshToken.trim();
+    if (!appKey || !refreshToken) {
+      throw new Error("Dropbox app key and refresh token are required for token refresh.");
+    }
+
+    const refreshed = await DropboxClient.refreshAccessToken({
+      clientId: appKey,
+      refreshToken,
+    });
+    const expiresAtIso = new Date(Date.now() + refreshed.expiresInSeconds * 1000).toISOString();
+
+    if (this.onAuthTokensUpdated) {
+      await this.onAuthTokensUpdated({
+        dropboxAccessToken: refreshed.accessToken,
+        dropboxAccessTokenExpiresAt: expiresAtIso,
+      });
+    }
+
+    return refreshed.accessToken;
+  }
+
+  private parseIsoTimestamp(value: string): number | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    const parsed = Date.parse(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return undefined;
+    }
+    return parsed;
   }
 
   private updateStatus(status: string): void {

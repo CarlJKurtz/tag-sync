@@ -41,11 +41,14 @@ export default class TagSyncPlugin extends Plugin {
       getSettings: () => this.settings,
       stateStore,
       onStatusChange: (status) => this.updateStatus(status),
+      onAuthTokensUpdated: async (tokens) => {
+        await this.persistAuthTokens(tokens);
+      },
     });
     await this.syncEngine.initialize();
 
     this.statusBarEl = this.addStatusBarItem();
-    this.updateStatus("Idle");
+    this.updateStatus(this.getSetupIssue() ? "Setup required" : "Idle");
 
     this.addSettingTab(new TagSyncSettingTab(this.app, this));
     this.registerCommands();
@@ -53,6 +56,9 @@ export default class TagSyncPlugin extends Plugin {
 
     this.addRibbonIcon("sync", "TagSync: Sync now", async () => {
       if (!this.syncEngine) {
+        return;
+      }
+      if (!this.ensureSetupForSync()) {
         return;
       }
       await this.syncEngine.syncNow();
@@ -91,6 +97,9 @@ export default class TagSyncPlugin extends Plugin {
         if (!this.syncEngine) {
           return;
         }
+        if (!this.ensureSetupForSync()) {
+          return;
+        }
         await this.syncEngine.syncNow();
         new Notice("TagSync completed");
       },
@@ -103,6 +112,9 @@ export default class TagSyncPlugin extends Plugin {
         if (!this.syncEngine) {
           return;
         }
+        if (!this.ensureSetupForSync()) {
+          return;
+        }
         await this.syncEngine.rebuildIndex();
         new Notice("TagSync rebuild complete");
       },
@@ -113,6 +125,9 @@ export default class TagSyncPlugin extends Plugin {
       name: "Resync all tagged files",
       callback: async () => {
         if (!this.syncEngine) {
+          return;
+        }
+        if (!this.ensureSetupForSync()) {
           return;
         }
         await this.syncEngine.resyncAllTaggedFiles();
@@ -192,6 +207,17 @@ export default class TagSyncPlugin extends Plugin {
     await this.savePluginData();
   }
 
+  private async persistAuthTokens(tokens: {
+    dropboxAccessToken: string;
+    dropboxAccessTokenExpiresAt: string;
+  }): Promise<void> {
+    this.settings = sanitizeSettings({
+      ...this.settings,
+      ...tokens,
+    });
+    await this.saveSettings();
+  }
+
   private async saveSyncState(syncState: SyncStateData): Promise<void> {
     this.storedData.syncState = syncState;
     await this.savePluginData();
@@ -208,5 +234,32 @@ export default class TagSyncPlugin extends Plugin {
 
   private updateStatus(status: string): void {
     this.statusBarEl?.setText(`TagSync: ${status}`);
+  }
+
+  private ensureSetupForSync(): boolean {
+    const issue = this.getSetupIssue();
+    if (!issue) {
+      return true;
+    }
+
+    this.updateStatus("Setup required");
+    new Notice(`TagSync setup required: ${issue}`);
+    return false;
+  }
+
+  private getSetupIssue(): string | null {
+    if (this.settings.tagsToSync.length === 0) {
+      return "Add at least one tag in 'Tags to sync'.";
+    }
+    if (!this.settings.dropboxAppKey.trim()) {
+      return "Enter Dropbox app key in TagSync settings.";
+    }
+    if (!this.settings.dropboxRefreshToken.trim()) {
+      return "Use the OAuth helper to connect Dropbox and store a refresh token.";
+    }
+    if (!this.settings.remoteBasePath.trim()) {
+      return "Set a Dropbox remote base path.";
+    }
+    return null;
   }
 }

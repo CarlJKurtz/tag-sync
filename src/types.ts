@@ -1,6 +1,10 @@
 export interface TagSyncSettings {
   tagsToSync: string[];
   dropboxAccessToken: string;
+  dropboxAppKey: string;
+  dropboxRefreshToken: string;
+  dropboxAccessTokenExpiresAt: string;
+  dropboxOauthCodeVerifier: string;
   remoteBasePath: string;
   pollIntervalSeconds: number;
   vaultId: string;
@@ -26,6 +30,10 @@ export interface PluginStoredData {
 export const DEFAULT_SETTINGS: TagSyncSettings = {
   tagsToSync: [],
   dropboxAccessToken: "",
+  dropboxAppKey: "",
+  dropboxRefreshToken: "",
+  dropboxAccessTokenExpiresAt: "",
+  dropboxOauthCodeVerifier: "",
   remoteBasePath: "/",
   pollIntervalSeconds: 30,
   vaultId: "",

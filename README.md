@@ -32,7 +32,7 @@ I developed this plugin to **sync notes** about people **between my personal and
 ### Requirements
 - Obsidian `1.5.0+`
 - Dropbox account
-- Dropbox API app + access token
+- Dropbox API app + app key
   
 ### Installation
 1. Download the [latest release](https://github.com/CarlJKurtz/tag-sync/releases).
@@ -49,19 +49,30 @@ I developed this plugin to **sync notes** about people **between my personal and
    - `files.metadata.read`
    - `files.content.read`
    - `files.content.write`
-4. Generate an access token.
-5. Paste token into TagSync settings.
+4. Copy the app key.
+5. In TagSync settings:
+   - Enter `Dropbox app key`
+   - Click `Generate + open`
+   - Approve Dropbox access
+   - Paste the returned authorization code
+   - Click `Exchange code`
+6. TagSync stores `Dropbox refresh token`, `Dropbox access token`, and expiry automatically.
 
 ## Settings
-| Setting                   | Type        | Required | Default | Description                                                                 |
-| ------------------------- | ----------- | -------- | ------- | --------------------------------------------------------------------------- |
-| `Tags to sync`            | string list | Yes      | `[]`    | Comma/newline list of tags, with or without `#`.                            |
-| `Dropbox access token`    | string      | Yes      | `""`    | Dropbox API token for sync requests.                                        |
-| `Poll interval (seconds)` | number      | Yes      | `30`    | Remote refresh interval. Minimum `5`.                                       |
-| `Max upload size (MB)`    | number      | Yes      | `20`    | Tagged files larger than this are skipped. Minimum `1`.                     |
-| `Remote base path`        | string      | No       | `/`     | Dropbox base folder for synced notes. Keep identical across synced vaults.* |
+| Setting                         | Type         | Required | Default | Description                                                                   |
+| ------------------------------- | ------------ | -------- | ------- | ----------------------------------------------------------------------------- |
+| `Tags to sync`                  | string list  | Yes      | `[]`    | Comma/newline list of tags, with or without `#`.                              |
+| `Dropbox app key`               | string       | Yes      | `""`    | Dropbox app key used for OAuth setup and token refresh.                       |
+| `Dropbox refresh token`         | string       | Yes*     | `""`    | Long-lived token used to auto-refresh access tokens (set via OAuth helper).   |
+| `Access token expires at (UTC)` | ISO datetime | No       | `""`    | Auto-managed expiration timestamp for current access token.                   |
+| `Poll interval (seconds)`       | number       | Yes      | `30`    | Remote refresh interval. Minimum `5`.                                         |
+| `Max upload size (MB)`          | number       | Yes      | `20`    | Tagged files larger than this are skipped. Minimum `1`.                       |
+| `Remote base path`              | string       | No       | `/`     | Dropbox base folder for synced notes. Keep identical across synced vaults.\** |
 
-*Keep `Remote base path` identical across all vaults in the same sync channel. If you change it, run **Resync all tagged files** in each synced vault.
+
+\*`Dropbox refresh token` is automatically set by the in-plugin OAuth code exchange flow.
+
+\** Keep `Remote base path` identical across all vaults in the same sync channel. If you change it, run **Resync all tagged files** in each synced vault.
 
 ## Conflict Behavior
 If local and remote diverge before sync, the plugin creates a local conflict copy `NoteName (conflict <vaultId> YYYY-MM-DD_HH-MM).md`. It keeps the original file path stable and resolves the main file by latest timestamp policy.
@@ -82,8 +93,13 @@ Possible fixes:
 - Verify latest plugin build is installed on all devices.
 - Avoid editing same file simultaneously across devices.
 
+## Troubleshooting for "Folder already exists"
+- On case-sensitive path handling, cases like `people` and `People` are treated as different paths and can collide during sync/move operations.
+- If sync reports that a folder already exists, normalize folder naming to a single case in your vault and Dropbox (for example, rename `people` -> `People`).
+- After renaming, run `Resync all tagged files` once to reconcile paths.
+
 ## Security
-Your Dropbox token is stored unencrypted in the Obsidian plugin data on your machine.
+Your Dropbox auth values (access token and optional refresh token) are stored unencrypted in the Obsidian plugin data on your machine.
 
 
 ## Contributing, Support & License
