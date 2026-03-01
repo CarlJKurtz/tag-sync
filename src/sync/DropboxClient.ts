@@ -1,3 +1,4 @@
+import { requestUrl, type RequestUrlResponse } from "obsidian";
 import { normalizeRemoteBasePath } from "./pathUtils";
 
 const API_BASE = "https://api.dropboxapi.com/2";
@@ -46,6 +47,12 @@ interface ListFolderResponse {
   has_more: boolean;
 }
 
+interface DropboxRequestOptions {
+  method: string;
+  headers?: Record<string, string>;
+  body?: string | ArrayBuffer;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -54,12 +61,31 @@ function isTransientStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
-function getRetryDelayMs(response: Response, attempt: number): number {
-  const retryAfter = Number(response.headers.get("Retry-After"));
+function isSuccessStatus(status: number): boolean {
+  return status >= 200 && status < 300;
+}
+
+function getHeader(headers: Record<string, string>, key: string): string | undefined {
+  const expected = key.toLowerCase();
+  for (const [headerKey, value] of Object.entries(headers)) {
+    if (headerKey.toLowerCase() === expected) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function getRetryDelayMs(response: RequestUrlResponse, attempt: number): number {
+  const retryAfter = Number(getHeader(response.headers, "Retry-After"));
   if (Number.isFinite(retryAfter)) {
     return Math.max(1000, retryAfter * 1000);
   }
   return Math.min(1000 * 2 ** (attempt - 1), 30000);
+}
+
+function encodeUtf8(text: string): ArrayBuffer {
+  const bytes = new TextEncoder().encode(text);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 const DROPBOX_UNREACHABLE_MESSAGE = "Can’t reach Dropbox";
@@ -173,14 +199,16 @@ export class DropboxClient {
     let lastNetworkError: Error | undefined;
 
     while (attempt <= maxAttempts) {
-      let response: Response;
+      let response: RequestUrlResponse;
       try {
-        response = await fetch(`${OAUTH_BASE}/oauth2/token`, {
+        response = await requestUrl({
+          url: `${OAUTH_BASE}/oauth2/token`,
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body,
+          throw: false,
         });
       } catch (error) {
         lastNetworkError = error instanceof Error ? error : new Error(String(error));
@@ -192,8 +220,8 @@ export class DropboxClient {
         continue;
       }
 
-      if (response.ok) {
-        const payload = (await response.json()) as {
+      if (isSuccessStatus(response.status)) {
+        const payload = response.json as {
           access_token?: unknown;
           refresh_token?: unknown;
           expires_in?: unknown;
@@ -216,7 +244,7 @@ export class DropboxClient {
         };
       }
 
-      const responseText = await response.text();
+      const responseText = response.text;
       if (!isTransientStatus(response.status) || attempt === maxAttempts) {
         throw new Error(`Dropbox OAuth token request failed (${response.status}): ${responseText}`);
       }
@@ -247,12 +275,12 @@ export class DropboxClient {
           "Dropbox-API-Arg": toHeaderSafeJson(arg),
           "Content-Type": "application/octet-stream",
         },
-        body: new TextEncoder().encode(content),
+        body: encodeUtf8(content),
       },
       `upload ${path}`,
     );
 
-    const body = (await response.json()) as DropboxFileMetadata;
+    const body = response.json as DropboxFileMetadata;
     return body;
   }
 
@@ -269,13 +297,13 @@ export class DropboxClient {
       `download ${path}`,
     );
 
-    const metadataHeader = response.headers.get("Dropbox-API-Result");
+    const metadataHeader = getHeader(response.headers, "Dropbox-API-Result");
     if (!metadataHeader) {
       throw new Error(`Dropbox download missing metadata header for ${path}`);
     }
 
     const metadata = JSON.parse(metadataHeader) as DropboxFileMetadata;
-    const buffer = await response.arrayBuffer();
+    const buffer = response.arrayBuffer;
     const content = new TextDecoder().decode(buffer);
     return { metadata, content };
   }
@@ -380,15 +408,15 @@ export class DropboxClient {
       options,
     );
 
-    return (await response.json()) as T;
+    return response.json as T;
   }
 
   private async fetchWithRetry(
     url: string,
-    init: RequestInit,
+    init: DropboxRequestOptions,
     label: string,
     options?: { allowNotFound?: boolean; allowCursorReset?: boolean },
-  ): Promise<Response> {
+  ): Promise<RequestUrlResponse> {
     const maxAttempts = 6;
     let attempt = 1;
     let lastNetworkError: Error | undefined;
@@ -396,13 +424,18 @@ export class DropboxClient {
     let accessToken = await this.resolveAccessToken();
 
     while (attempt <= maxAttempts) {
-      let response: Response;
+      let response: RequestUrlResponse;
       try {
-        const headers = new Headers(init.headers ?? {});
-        headers.set("Authorization", `Bearer ${accessToken}`);
-        response = await fetch(url, {
-          ...init,
+        const headers = {
+          ...(init.headers ?? {}),
+          Authorization: `Bearer ${accessToken}`,
+        };
+        response = await requestUrl({
+          url,
+          method: init.method,
           headers,
+          body: init.body,
+          throw: false,
         });
       } catch (error) {
         lastNetworkError = error instanceof Error ? error : new Error(String(error));
@@ -415,7 +448,7 @@ export class DropboxClient {
         continue;
       }
 
-      if (response.ok) {
+      if (isSuccessStatus(response.status)) {
         return response;
       }
 
@@ -427,7 +460,7 @@ export class DropboxClient {
 
       let responseText: string | undefined;
       if (response.status === 409 && (options?.allowNotFound || options?.allowCursorReset)) {
-        responseText = await response.text();
+        responseText = response.text;
 
         if (options?.allowNotFound && responseText.includes("not_found")) {
           return response;
@@ -439,7 +472,7 @@ export class DropboxClient {
       }
 
       if (typeof responseText !== "string") {
-        responseText = await response.text();
+        responseText = response.text;
       }
 
       if (!isTransientStatus(response.status)) {

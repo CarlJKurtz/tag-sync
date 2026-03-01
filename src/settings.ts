@@ -148,16 +148,16 @@ export class TagSyncSettingTab extends PluginSettingTab {
     });
     const commandsListEl = containerEl.createEl("ul");
     commandsListEl.createEl("li", {
-      text: "Sync now - Runs an immediate local+remote sync pass.",
+      text: "Sync now - runs an immediate local + remote sync pass.",
     });
     commandsListEl.createEl("li", {
-      text: "Rebuild index - Rebuilds tag index and syncs with current metadata.",
+      text: "Rebuild index - rebuilds tag index and syncs with current metadata.",
     });
     commandsListEl.createEl("li", {
-      text: "Resync all tagged files - Force re-uploads all tagged files.",
+      text: "Resync all tagged files - force re-uploads all tagged files.",
     });
     commandsListEl.createEl("li", {
-      text: "Pause/Resume sync - Temporarily pauses or resumes syncing.",
+      text: "Pause / Resume sync - temporarily pauses or resumes syncing.",
     });
 
     const warningsEl = containerEl.createDiv();
@@ -173,7 +173,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
       .setDesc("Comma or newline separated tags, with or without #.")
       .addTextArea((textArea) =>
         textArea
-          .setPlaceholder("#sync/project-x")
+          .setPlaceholder("sync")
           .setValue(this.plugin.settings.tagsToSync.join(", "))
           .onChange(async (value) => {
             await this.plugin.updateSettings({
@@ -185,7 +185,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Dropbox app key")
-      .setDesc("Required for OAuth helper and refresh-token mode.")
+      .setDesc("Required for auth helper and refresh-token mode.")
       .addText((text) =>
         text
           .setPlaceholder("App key from Dropbox app console")
@@ -198,7 +198,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
 
     containerEl.createEl("p", {
       text:
-        "OAuth helper: Generate a Dropbox link from your app key, approve access, paste the authorization code, then exchange it for refresh/access tokens.",
+        "Auth helper: generate a Dropbox link from your app key, approve access, paste the authorization code, then exchange it for refresh/access tokens.",
     });
 
     let authorizationCodeInput: TextComponent | null = null;
@@ -207,8 +207,8 @@ export class TagSyncSettingTab extends PluginSettingTab {
     let authorizationCode = "";
 
     new Setting(containerEl)
-      .setName("Generate OAuth link")
-      .setDesc("Creates a Dropbox OAuth URL with offline access and opens it in your browser.")
+      .setName("Generate auth link")
+      .setDesc("Creates a Dropbox auth URL with offline access and opens it in your browser.")
       .addButton((button) =>
         button
           .setButtonText("Generate + open")
@@ -232,7 +232,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
                 dropboxOauthCodeVerifier: codeVerifier,
               });
 
-              new Notice("Dropbox OAuth link opened. Approve access, then paste the authorization code.");
+              new Notice("Dropbox auth link opened. Approve access, then paste the authorization code.");
               renderWarnings();
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
@@ -276,7 +276,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
 
               const codeVerifier = this.plugin.settings.dropboxOauthCodeVerifier.trim();
               if (!codeVerifier) {
-                new Notice("Generate a new OAuth link before exchanging code.");
+                new Notice("Generate a new auth link before exchanging code.");
                 return;
               }
 
@@ -305,7 +305,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
               refreshTokenInput?.setValue(exchanged.refreshToken);
               expiresAtInput?.setValue(expiresAt);
               renderWarnings();
-              new Notice("Dropbox OAuth setup complete.");
+              new Notice("Dropbox auth setup complete.");
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               new Notice(`Failed to exchange authorization code: ${message}`);
@@ -315,7 +315,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Dropbox refresh token")
-      .setDesc("Long-lived token used to auto-refresh access tokens. Note: filled automatically after OAuth code exchange.")
+      .setDesc("Long-lived token used to auto-refresh access tokens. Note: filled automatically after auth code exchange.")
       .addText((text) => {
         refreshTokenInput = text;
         text.inputEl.type = "password";
@@ -332,8 +332,8 @@ export class TagSyncSettingTab extends PluginSettingTab {
       ? this.plugin.settings.dropboxAccessTokenExpiresAt
       : "Not set";
     new Setting(containerEl)
-      .setName("Access token expires at (UTC)")
-      .setDesc("Auto-managed in refresh-token mode. Note: filled automatically after OAuth code exchange.")
+      .setName("Access token expiry time (UTC)")
+      .setDesc("Auto-managed in refresh-token mode. Note: filled automatically after auth code exchange.")
       .addText((text) => {
         expiresAtInput = text;
         return text
@@ -361,7 +361,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Max upload size (MB)")
+      .setName("Max upload size (mb)")
       .setDesc("Files above this size are skipped.")
       .addText((text) =>
         text

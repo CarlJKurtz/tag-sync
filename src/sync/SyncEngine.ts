@@ -41,8 +41,6 @@ interface SyncEngineOptions {
   }) => Promise<void>;
 }
 
-const INTERNAL_IGNORE_GLOBS = [".obsidian/**"];
-
 export class SyncEngine {
   private readonly app: App;
   private readonly getSettings: () => TagSyncSettings;
@@ -106,6 +104,9 @@ export class SyncEngine {
       if (!hasMarkdownPath) {
         return;
       }
+      if (this.isInsideConfigDir(newPath) || this.isInsideConfigDir(oldPath)) {
+        return;
+      }
       if (this.isPathIgnored(newPath) || this.isPathIgnored(oldPath)) {
         return;
       }
@@ -115,6 +116,9 @@ export class SyncEngine {
 
     const path = normalizeLocalPath(event.path);
     if (!isMarkdownPath(path)) {
+      return;
+    }
+    if (this.isInsideConfigDir(path)) {
       return;
     }
     if (this.isPathIgnored(path)) {
@@ -245,7 +249,10 @@ export class SyncEngine {
 
     try {
       await this.pullRemoteChanges(client, settings);
-      const taggedFiles = this.tagIndex.buildTaggedFileSet(settings.tagsToSync, INTERNAL_IGNORE_GLOBS);
+      const taggedFiles = this.tagIndex.buildTaggedFileSet(
+        settings.tagsToSync,
+        this.getInternalIgnoreGlobs(),
+      );
       await this.pushLocalChanges(client, settings, taggedFiles, shouldForceUpload);
       this.forceUploadAllTagged = false;
     } finally {
@@ -487,7 +494,7 @@ export class SyncEngine {
 
   private async deleteLocalFile(file: TFile): Promise<void> {
     this.markPathIgnored(file.path);
-    await this.app.vault.delete(file);
+    await this.app.fileManager.trashFile(file);
   }
 
   private async ensureParentFolders(filePath: string): Promise<void> {
@@ -724,6 +731,24 @@ export class SyncEngine {
     const normalized = normalizeLocalPath(path);
     const expiresAt = this.ignoredPaths.get(normalized);
     return typeof expiresAt === "number" && expiresAt >= now;
+  }
+
+  private getInternalIgnoreGlobs(): string[] {
+    const configDir = normalizeLocalPath(this.app.vault.configDir || ".obsidian");
+    if (!configDir) {
+      return [];
+    }
+    return [`${configDir}/**`];
+  }
+
+  private isInsideConfigDir(path: string): boolean {
+    const configDir = normalizeLocalPath(this.app.vault.configDir || ".obsidian");
+    if (!configDir) {
+      return false;
+    }
+
+    const normalized = normalizeLocalPath(path);
+    return normalized === configDir || normalized.startsWith(`${configDir}/`);
   }
 
   private restartPolling(): void {

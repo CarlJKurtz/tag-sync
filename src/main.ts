@@ -30,7 +30,7 @@ export default class TagSyncPlugin extends Plugin {
     await this.loadSettings();
 
     const stateStore = new StateStore(
-      async () => this.storedData.syncState,
+      () => Promise.resolve(this.storedData.syncState),
       async (state) => {
         await this.saveSyncState(state);
       },
@@ -41,9 +41,7 @@ export default class TagSyncPlugin extends Plugin {
       getSettings: () => this.settings,
       stateStore,
       onStatusChange: (status) => this.updateStatus(status),
-      onAuthTokensUpdated: async (tokens) => {
-        await this.persistAuthTokens(tokens);
-      },
+      onAuthTokensUpdated: (tokens) => this.persistAuthTokens(tokens),
     });
     await this.syncEngine.initialize();
 
@@ -54,7 +52,7 @@ export default class TagSyncPlugin extends Plugin {
     this.registerCommands();
     this.registerVaultEvents();
 
-    this.addRibbonIcon("sync", "TagSync: Sync now", async () => {
+    this.addRibbonIcon("sync", "Sync now", async () => {
       if (!this.syncEngine) {
         return;
       }
@@ -62,11 +60,15 @@ export default class TagSyncPlugin extends Plugin {
         return;
       }
       await this.syncEngine.syncNow();
-      new Notice("TagSync completed");
+      new Notice("Sync completed.");
     });
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
+    void this.disposeSyncEngine();
+  }
+
+  private async disposeSyncEngine(): Promise<void> {
     if (this.syncEngine) {
       await this.syncEngine.dispose();
       this.syncEngine = null;
@@ -84,7 +86,7 @@ export default class TagSyncPlugin extends Plugin {
 
     if (previousRemoteBasePath !== this.settings.remoteBasePath) {
       new Notice(
-        "TagSync remote base path changed. Run 'TagSync: Resync all tagged files' in each synced vault.",
+        "TagSync remote base path changed. Run 'Resync all tagged files' in each synced vault.",
       );
     }
   }
@@ -101,7 +103,7 @@ export default class TagSyncPlugin extends Plugin {
           return;
         }
         await this.syncEngine.syncNow();
-        new Notice("TagSync completed");
+        new Notice("Sync completed.");
       },
     });
 
@@ -116,7 +118,7 @@ export default class TagSyncPlugin extends Plugin {
           return;
         }
         await this.syncEngine.rebuildIndex();
-        new Notice("TagSync rebuild complete");
+        new Notice("Rebuild completed.");
       },
     });
 
@@ -131,13 +133,13 @@ export default class TagSyncPlugin extends Plugin {
           return;
         }
         await this.syncEngine.resyncAllTaggedFiles();
-        new Notice("TagSync tagged resync completed");
+        new Notice("Tagged resync completed.");
       },
     });
 
     this.addCommand({
       id: "toggle-pause-sync",
-      name: "Pause/Resume sync",
+      name: "Pause or resume sync",
       callback: () => {
         if (!this.syncEngine) {
           return;
