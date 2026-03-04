@@ -86,7 +86,7 @@ export default class TagSyncPlugin extends Plugin {
 
     if (previousRemoteBasePath !== this.settings.remoteBasePath) {
       new Notice(
-        "TagSync remote base path changed. Run 'Resync all tagged files' in each synced vault.",
+        "TagSync remote base path changed. Run 'resync all tagged files' in each synced vault.",
       );
     }
   }

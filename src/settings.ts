@@ -157,7 +157,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
       text: "Resync all tagged files - force re-uploads all tagged files.",
     });
     commandsListEl.createEl("li", {
-      text: "Pause / Resume sync - temporarily pauses or resumes syncing.",
+      text: "Pause / resume sync - temporarily pauses or resumes syncing.",
     });
 
     const warningsEl = containerEl.createDiv();
@@ -173,7 +173,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
       .setDesc("Comma or newline separated tags, with or without #.")
       .addTextArea((textArea) =>
         textArea
-          .setPlaceholder("sync")
+          .setPlaceholder("Sync")
           .setValue(this.plugin.settings.tagsToSync.join(", "))
           .onChange(async (value) => {
             await this.plugin.updateSettings({
@@ -332,7 +332,7 @@ export class TagSyncSettingTab extends PluginSettingTab {
       ? this.plugin.settings.dropboxAccessTokenExpiresAt
       : "Not set";
     new Setting(containerEl)
-      .setName("Access token expiry time (UTC)")
+      .setName("Access token expiry time")
       .setDesc("Auto-managed in refresh-token mode. Note: filled automatically after auth code exchange.")
       .addText((text) => {
         expiresAtInput = text;

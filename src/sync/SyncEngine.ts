@@ -734,7 +734,7 @@ export class SyncEngine {
   }
 
   private getInternalIgnoreGlobs(): string[] {
-    const configDir = normalizeLocalPath(this.app.vault.configDir || ".obsidian");
+    const configDir = normalizeLocalPath(this.app.vault.configDir);
     if (!configDir) {
       return [];
     }
@@ -742,7 +742,7 @@ export class SyncEngine {
   }
 
   private isInsideConfigDir(path: string): boolean {
-    const configDir = normalizeLocalPath(this.app.vault.configDir || ".obsidian");
+    const configDir = normalizeLocalPath(this.app.vault.configDir);
     if (!configDir) {
       return false;
     }
