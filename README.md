@@ -109,7 +109,7 @@ Your Dropbox auth values (access token and optional refresh token) are stored un
 Contributions are greatly appreciated! You can create an [issue](https://github.com/CarlJKurtz/tag-sync/issues) to report a bug, suggest an improvement for this plugin, ask a question, etc. You can make a [pull request](https://github.com/CarlJKurtz/tag-sync/pulls) to contribute to this plugin development.
 
 ### Acknowledgements
-This plugin was created with the help of AI, specifically GPT-5.3-Codex.
+This plugin was created with the help of AI, specifically GPT-5.3-Codex and later Claude Sonnet 4.6.
 
 ### Testing
 The plugin was tested only in a macOS and iOS environment. TagSync should be OS-agnostic, but it was not tested in other environments.
